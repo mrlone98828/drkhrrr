@@ -1,9 +1,11 @@
 // netlify/functions/story.js
-import fetch from "node-fetch";
-
-export default async (req, res) => {
+export async function handler(event) {
   try {
-    const { prompt } = await req.json();
+    if (event.httpMethod !== "POST") {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
+    }
+
+    const { prompt } = JSON.parse(event.body || "{}");
     if (!prompt) {
       return new Response(JSON.stringify({ error: "prompt required" }), { status: 400 });
     }
@@ -27,13 +29,22 @@ export default async (req, res) => {
 
     if (!r.ok) {
       const txt = await r.text();
-      return new Response(JSON.stringify({ error: "OpenAI error", detail: txt }), { status: 500 });
+      return new Response(JSON.stringify({ error: "OpenAI error", detail: txt }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const data = await r.json();
-    return new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: "server error", detail: String(err) }), { status: 500 });
+    return new Response(JSON.stringify({ error: "server error", detail: String(err) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
   }
-};
+}
