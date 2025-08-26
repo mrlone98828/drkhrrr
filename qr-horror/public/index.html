@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR Horror – idézz meg egy történetet</title>
+  <meta name="description" content="Adj meg egy szót, és az AI sötét, rövid horror-történetet sző köré." />
+  <style>
+    :root{
+      --bg:#0b0b0f; --card:#15151b; --ink:#e8e0d8; --muted:#9a948d; --accent:#c34040; --ok:#3aa374;
+      --ring: rgba(195,64,64,.4);
+    }
+    html,body{height:100%;}
+    body{margin:0; background:radial-gradient(60% 80% at 50% 20%, #121218 0%, var(--bg) 60%); color:var(--ink); font:16px/1.6 Georgia, 'Times New Roman', Times, serif; letter-spacing:.2px;}
+    .wrap{min-height:100%; display:grid; place-items:center; padding:24px;}
+    .card{width:100%; max-width:720px; background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)), var(--card); border:1px solid rgba(255,255,255,.06); border-radius:20px; box-shadow:0 10px 40px rgba(0,0,0,.4); overflow:hidden}
+    header{padding:28px 28px 12px; border-bottom:1px solid rgba(255,255,255,.06);}
+    h1{margin:0; font-weight:700; font-variant: small-caps; letter-spacing:1px;}
+    .flicker{animation:flicker 6s linear infinite;}
+    @keyframes flicker{0%,19%,21%,23%,25%,54%,56%,100%{text-shadow:0 0 0px var(--accent);}20%,24%,55%{text-shadow:0 0 14px var(--accent);} }
+    .sub{color:var(--muted); margin-top:6px; font-size:.95rem}
+    .body{padding:24px 28px 28px;}
+    .row{display:flex; gap:12px; flex-wrap:wrap;}
+    .row>*{flex:1 1 220px}
+    .input{display:flex; align-items:center; gap:10px; background:#0f0f14; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px 14px; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .2s, border-color .2s}
+    .input:focus-within{border-color:var(--ring); box-shadow: 0 0 0 6px var(--ring);}
+    .input input{flex:1; background:transparent; border:0; outline:0; color:var(--ink); font-size:1.1rem}
+    .hint{font-size:.9rem; color:var(--muted); margin-top:6px}
+    .btns{display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap}
+    button{cursor:pointer; border:1px solid rgba(255,255,255,.1); background:#111117; color:var(--ink); border-radius:12px; padding:10px 14px; font-weight:600; letter-spacing:.3px; transition: transform .05s ease, background .2s, border-color .2s}
+    button:hover{background:#171724;}
+    button:active{transform: translateY(1px);}
+    .primary{background:linear-gradient(180deg, rgba(195,64,64,.16), rgba(195,64,64,.04)); border-color: rgba(195,64,64,.6)}
+    .ghost{background:transparent}
+    .ok{background:linear-gradient(180deg, rgba(58,163,116,.14), rgba(58,163,116,.04)); border-color: rgba(58,163,116,.5)}
+    .danger{background:linear-gradient(180deg, rgba(195,64,64,.14), rgba(195,64,64,.04)); border-color: rgba(195,64,64,.5)}
+    .story{margin-top:22px; background:#0f0f14; border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:16px; min-height:140px; position:relative}
+    .caret{display:inline-block; width:8px; height:1.2em; background:var(--ink); vertical-align:-2px; animation:blink 1s steps(1,end) infinite; margin-left:2px}
+    @keyframes blink{50%{opacity:.1}}
+    .toolbar{display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:8px}
+    .note{font-size:.85rem; color:var(--muted)}
+    .warn{color:#ffb4a8}
+    .spinner{--s:18px; width:var(--s); height:var(--s); border-radius:50%; border:2px solid rgba(255,255,255,.2); border-top-color:var(--ink); animation:spin 1s linear infinite; display:inline-block; vertical-align:-4px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    footer{padding:8px 28px 24px; color:var(--muted); font-size:.85rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <h1 class="flicker">QR Horror</h1>
+        <p class="sub">Adj meg <em>egy</em> szót – az oldal pedig egy sötét, rövid történetet sző köré.</p>
+      </header>
+      <div class="body">
+        <label class="input" for="word">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l4 4-9 9-4 1 1-4 9-9z" stroke="currentColor" stroke-width="1.5"/></svg>
+          <input id="word" name="word" placeholder="pl. tükör" maxlength="24" autocomplete="off" />
+        </label>
+        <div class="hint">Tipp: elég egy motívum (tükör, diófa, kút, óra). Kifejezés helyett egyetlen szó működik a legjobban.</div>
+        <div class="btns">
+          <button class="primary" id="goBtn">Idézz meg a sztorit</button>
+          <button class="ghost" id="rndBtn" title="Véletlen szó">Véletlen szó</button>
+          <button class="ghost" id="clearBtn">Törlés</button>
+        </div>
+        <div class="story" id="storyBox" aria-live="polite"></div>
+        <div class="toolbar">
+          <button id="copyBtn" class="ok" title="Másolás">Másolás</button>
+          <button id="againBtn" class="danger" title="Új változat ugyanarra a szóra">Új változat</button>
+        </div>
+      </div>
+      <footer>
+        <div class="note">Történet-generálás: OpenAI <code>Responses API</code> és <code>gpt-4o-mini</code>. A mechanika egyszerű, a hangulat klasszikus. Jó borzongást! 👁</div>
+      </footer>
+    </div>
+  </div>
+
+<script>
+  const MODEL = 'gpt-4o-mini';
+  const PROXY_ENDPOINT = '/.netlify/functions/story';
+
+  const wordEl = document.querySelector('#word');
+  const goBtn = document.querySelector('#goBtn');
+  const rndBtn = document.querySelector('#rndBtn');
+  const clearBtn = document.querySelector('#clearBtn');
+  const againBtn = document.querySelector('#againBtn');
+  const storyBox = document.querySelector('#storyBox');
+  const copyBtn = document.querySelector('#copyBtn');
+
+  const samples = ['tükör','lépcsőház','zsebóra','kút','fátyol','kandalló','kulcs','diófa','fiók','szekrény'];
+
+  function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+  rndBtn.addEventListener('click', ()=>{ wordEl.value = pick(samples); wordEl.focus();});
+  clearBtn.addEventListener('click', ()=>{ wordEl.value = ''; storyBox.textContent='';});
+  againBtn.addEventListener('click', ()=> doGenerate(true));
+  goBtn.addEventListener('click', ()=> doGenerate(false));
+  copyBtn.addEventListener('click', async ()=>{
+    const text = storyBox.innerText.trim();
+    if(!text) return;
+    await navigator.clipboard.writeText(text);
+    flash(copyBtn);
+  });
+
+  function flash(btn){
+    const t = btn.textContent; btn.textContent='✔'; setTimeout(()=>btn.textContent=t, 900);
+  }
+
+  function sanitize(word){
+    if(!word) return '';
+    const first = word.split(/\s+/)[0];
+    return first.replace(/[^a-zA-ZáéíóöőúüűÁÉÍÓÖŐÚÜŰ-]/g,'').toLowerCase();
+  }
+
+  async function doGenerate(variant){
+    let word = sanitize(wordEl.value);
+    if(!word){ word = pick(samples); wordEl.value = word; }
+
+    const prompt = buildPrompt(word, variant);
+
+    setStory(loadingMarkup(`Történet készül a(z) „${word}” szóból`));
+
+    try{
+      const res = await fetch(PROXY_ENDPOINT, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt, word })});
+      if(!res.ok) throw new Error('Proxy hiba');
+      const data = await res.json();
+      const text = extractText(data).trim();
+      typewriter(text);
+    }catch(err){
+      console.error(err);
+      setStory('Valami félresikerült. Próbáld újra később.');
+    }
+  }
+
+  function buildPrompt(word, variant){
+    const vibe = variant? 'Ugyanerre a szóra készíts más hangulatú változatot.' : 'Írj egy teljesen új történetet.';
+    return `Rendszerszerep: Te egy magyar nyelvű, atmoszférikus horror novellista vagy.\n\nFeladat: ${vibe} A megadott kulcsszót természetesen sződd bele a szövegbe, ne túl direkt módon.\nKulcsszó: "${word}"\nKérés: 180–300 szó, feszült, de elegáns stílus, erős képekkel, klisék nélkül (nincs: jumpscare, "véres", "szellem" direkt említése). Sok érzéki részlet (hangok, szagok, tapintás). Zárd katarzissal, nyitott utórezgéssel.`;
+  }
+
+  function extractText(json){
+    if(json.output_text) return json.output_text;
+    if(Array.isArray(json.output)){
+      const parts = [];
+      for(const item of json.output){
+        if(item && Array.isArray(item.content)){
+          for(const c of item.content){
+            if(c && (c.type === 'output_text' || c.type === 'text')){
+              if(typeof c.text === 'string') parts.push(c.text);
+              else if(typeof c.value === 'string') parts.push(c.value);
+            }
+          }
+        }
+      }
+      if(parts.length) return parts.join('');
+    }
+    if(Array.isArray(json.choices) && json.choices[0]){
+      const m = json.choices[0].message;
+      if(m && m.content) return m.content;
+      if(typeof json.choices[0].text === 'string') return json.choices[0].text;
+    }
+    return '';
+  }
+
+  function setStory(html){ storyBox.innerHTML = html; }
+
+  function loadingMarkup(text){
+    return `<span class="spinner"></span> ${text}…`;
+  }
+
+  function typewriter(text){
+    storyBox.innerHTML = '';
+    const p = document.createElement('p');
+    storyBox.appendChild(p);
+    let i=0;
+    const base = 12; 
+    const jitter = () => Math.random()*14;
+    const step = () => {
+      if(i<text.length){
+        p.textContent += text[i];
+        i++;
+        setTimeout(step, base + jitter());
+      } else {
+        const caret = document.createElement('span');
+        caret.className = 'caret';
+        storyBox.appendChild(caret);
+      }
+    };
+    step();
+  }
+
+  wordEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doGenerate(false);} });
+</script>
+</body>
+</html>
